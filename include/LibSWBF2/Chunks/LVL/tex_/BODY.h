@@ -23,6 +23,8 @@ namespace LibSWBF2::Chunks::LVL::LVL_texture
 		void ReadFromStream(FileReader& stream) override;
 
 		bool GetImageData(ETextureFormat format, uint16_t& width, uint16_t& height, const uint8_t*& data) const;
+		// M488 (swbf2render): the stored blocks, unconverted - false once converted or when not DXT1/3/5
+		bool GetRawData(uint16_t& width, uint16_t& height, uint32_t& d3dFormat, const uint8_t*& data, size_t& size) const;
 
 		~BODY();
 	};

@@ -33,7 +33,11 @@ namespace LibSWBF2::Chunks::LVL::modl
         m_Stride = stream.ReadUInt32();
         m_Flags = (EVBUFFlags)stream.ReadUInt32();
 
-        modl* model = dynamic_cast<modl*>(GetParent()->GetParent());
+        // M459: walk up to the model - a segment's VBUF sits at segm/modl,
+        // a shadow volume's at GSHD/shdw/modl.
+        modl* model = nullptr;
+        for (GenericBaseChunk* p = GetParent(); p != nullptr && model == nullptr; p = p->GetParent())
+            model = dynamic_cast<modl*>(p);
         if (model == nullptr)
         {
             // should never happen
@@ -42,8 +46,39 @@ namespace LibSWBF2::Chunks::LVL::modl
             return;
         }
 
+        // M459: compressed position decode, shared by the shadow-corner layout.
+        auto readPos = [&](Vector3& out) {
+            if ((m_Flags & EVBUFFlags::PositionCompressed) != 0)
+            {
+                glm::vec3 low = ToGLM(model->p_Info->m_VertexBox[0]);
+                glm::vec3 mul = (ToGLM(model->p_Info->m_VertexBox[1]) - ToGLM(model->p_Info->m_VertexBox[0]));
+                int16_t data[4];
+                data[0] = stream.ReadInt16(); data[1] = stream.ReadInt16(); data[2] = stream.ReadInt16(); data[3] = stream.ReadInt16();
+                glm::vec3 c(data[0], data[1], data[2]);
+                constexpr float i16min = std::numeric_limits<int16_t>::min();
+                constexpr float i16max = std::numeric_limits<int16_t>::max();
+                out = ToLib(low + (c - i16min) * mul / (i16max - i16min));
+            }
+            else out.ReadFromStream(stream);
+        };
+
         for (uint32_t i = 0; i < m_Count; ++i)
         {
+            // M459: every vertex advances by exactly m_Stride - a field this
+            // reader does not know no longer shifts every vertex after it.
+            const size_t vertexStart = stream.GetPosition();
+            if ((m_Flags & EVBUFFlags::ShadowFaceCorners) != 0)
+            {
+                Vector3 a, b, c;
+                readPos(a);
+                const uint8_t b0 = stream.ReadByte(), b1 = stream.ReadByte(), b2 = stream.ReadByte(), fl = stream.ReadByte();
+                readPos(b);
+                readPos(c);
+                m_Positions.Add(a); m_ShadowCornerB.Add(b); m_ShadowCornerC.Add(c);
+                m_BoneIndicies.Add({ b0, b1, b2 }); m_ShadowCornerFlag.Add(fl);
+                stream.SetPosition(vertexStart + m_Stride);
+                continue;
+            }
             if ((m_Flags & EVBUFFlags::Position) != 0)
             {
                 if ((m_Flags & EVBUFFlags::PositionCompressed) != 0)
@@ -132,13 +167,17 @@ namespace LibSWBF2::Chunks::LVL::modl
             {
                 if ((m_Flags & EVBUFFlags::NormalCompressed) != 0)
                 {
-                    int8_t data[4];
-                    data[0] = stream.ReadByte();
-                    data[1] = stream.ReadByte();
-                    data[2] = stream.ReadByte();
-                    data[3] = stream.ReadByte();
-                    glm::vec3 normal((float)data[0], (float)data[1], (float)data[2]);
-                    normal = (normal * 2.0f) - 1.0f;
+                    // M459: UNSIGNED bytes in B,G,R order (D3DCOLOR packing), 0..255 -> -1..1.
+                    // Proven natively: geo_bldg_bunker's shadow volume, 312/312 decoded
+                    // normals parallel to their face's true normal this way, 90/312 with
+                    // the old signed x,y,z decode (which scrambled every lit mesh too).
+                    uint8_t data[4];
+                    data[0] = (uint8_t)stream.ReadByte();
+                    data[1] = (uint8_t)stream.ReadByte();
+                    data[2] = (uint8_t)stream.ReadByte();
+                    data[3] = (uint8_t)stream.ReadByte();
+                    glm::vec3 normal((float)data[2], (float)data[1], (float)data[0]);
+                    normal = (normal / 255.0f) * 2.0f - 1.0f;
                     m_Normals.Add(ToLib(normal));
                 }
                 else
@@ -151,21 +190,21 @@ namespace LibSWBF2::Chunks::LVL::modl
             {
                 if ((m_Flags & EVBUFFlags::NormalCompressed) != 0)
                 {
-                    int8_t data[4];
-                    data[0] = stream.ReadByte();
-                    data[1] = stream.ReadByte();
-                    data[2] = stream.ReadByte();
-                    data[3] = stream.ReadByte();
-                    glm::vec3 tangent((float)data[0], (float)data[1], (float)data[2]);
-                    tangent = (tangent * 2.0f) - 1.0f;
+                    uint8_t data[4]; // M459: same packing as the normal (see there)
+                    data[0] = (uint8_t)stream.ReadByte();
+                    data[1] = (uint8_t)stream.ReadByte();
+                    data[2] = (uint8_t)stream.ReadByte();
+                    data[3] = (uint8_t)stream.ReadByte();
+                    glm::vec3 tangent((float)data[2], (float)data[1], (float)data[0]);
+                    tangent = (tangent / 255.0f) * 2.0f - 1.0f;
                     m_Tangents.Add(ToLib(tangent));
 
-                    data[0] = stream.ReadByte();
-                    data[1] = stream.ReadByte();
-                    data[2] = stream.ReadByte();
-                    data[3] = stream.ReadByte();
-                    glm::vec3 biTangent((float)data[0], (float)data[1], (float)data[2]);
-                    biTangent = (biTangent * 2.0f) - 1.0f;
+                    data[0] = (uint8_t)stream.ReadByte();
+                    data[1] = (uint8_t)stream.ReadByte();
+                    data[2] = (uint8_t)stream.ReadByte();
+                    data[3] = (uint8_t)stream.ReadByte();
+                    glm::vec3 biTangent((float)data[2], (float)data[1], (float)data[0]);
+                    biTangent = (biTangent / 255.0f) * 2.0f - 1.0f;
                     m_BiTangents.Add(ToLib(biTangent));
                 }
                 else
@@ -201,6 +240,7 @@ namespace LibSWBF2::Chunks::LVL::modl
                     m_TexCoords.Emplace().ReadFromStream(stream);
                 }
             }
+            if (m_Stride > 0) stream.SetPosition(vertexStart + m_Stride); // M459
         }
 
         BaseChunk::EnsureEnd(stream);

@@ -113,6 +113,17 @@ namespace LibSWBF2::Chunks::LVL::LVL_texture
         return true;
     }
 
+    bool BODY::GetRawData(uint16_t& width, uint16_t& height, uint32_t& d3dFormat, const uint8_t*& data, size_t& size) const
+    {
+        width = height = 0; d3dFormat = 0; data = nullptr; size = 0;
+        if (p_Image == nullptr) return false;
+        const D3DFORMAT f = p_Image->format;
+        if (f != D3DFMT_DXT1 && f != D3DFMT_DXT3 && f != D3DFMT_DXT5) return false;
+        width = p_Image->width; height = p_Image->height;
+        d3dFormat = (uint32_t)f; data = p_Image->p_Data; size = p_Image->m_DataLength;
+        return data != nullptr && size > 0;
+    }
+
     BODY::~BODY()
     {
         delete p_Image;

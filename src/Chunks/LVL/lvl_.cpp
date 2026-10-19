@@ -50,8 +50,12 @@ namespace LibSWBF2::Chunks::LVL
             }
             else
             {
+                // M490: skip this sub LVL's own remaining bytes (EnsureEnd below
+                // moves to its end). SkipChunk read the next 8 bytes as a child
+                // header - for an EMPTY sub LVL (sizeLeft 0) that is the NEXT
+                // sub LVL, which got skipped whole: imp.lvl's three empty ones
+                // swallowed imp_inf_rifleman on restricted loads.
                 LOG_INFO("Skipping unspecified sub LVL '{}'", m_NameHash);
-                SkipChunk(stream, false);
             }
         }
 

@@ -7,11 +7,12 @@
 		#define LIBSWBF2_API __declspec(dllexport)
 	#else
 		#define LIBSWBF2_API __declspec(dllimport)
-	#endif //LIBSWBF2_EXPORTS
+	#endif //LibSWBF2_EXPORTS
+#elif defined(__vita__)
+	#define LIBSWBF2_API
 #else
 	#define LIBSWBF2_API __attribute__((visibility("default")))
 #endif //_WIN32
-
 
 namespace LibSWBF2
 {

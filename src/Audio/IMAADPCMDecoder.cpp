@@ -122,13 +122,21 @@ namespace LibSWBF2
 			// This loop is safe because the munger is guaranteed to fill out partial blocks
 			for (uint32_t i = 0; i < ADPCMBufferLength; ++i)
 			{
+				// MILESTONE 255: same real bug class as the stereo branch
+				// below - see its own comment for the full citation. Only
+				// hits mono on an ODD numSamplesToExtract (an even one
+				// always completes both nibbles of the byte it's on
+				// before the post-write check can fire), but the same
+				// "check before mutating, not after" fix applies.
+				if ((uint32_t)DecodedDataBufferIndex >= numSamplesToExtract) break;
+
 				if (m_BytesRead % 36 == 0)
 				{
 					m_Predictor0 = *((int16_t *) (ADPCMBuffer + i));
 					m_StepIndex0 = *((int16_t *) (ADPCMBuffer + i + 2));
 
 					i+=4;
-					m_BytesRead += 4;					
+					m_BytesRead += 4;
 				}
 
 				m_BytesRead++;
@@ -155,7 +163,35 @@ namespace LibSWBF2
 			int j;
 			// Keeping destination index checks even though I
 			for (uint32_t i = 0; i < ADPCMBufferLength; i+=8)
-			{	
+			{
+				// MILESTONE 255: real bug, found from a real user report
+				// ("the ambience sounds terrible - blown out, distorted,
+				// completely unintelligible") - reproduced and root-
+				// caused natively (tools/check_chunked.cpp: decoding the
+				// same real stream in small repeated ReadSamples() calls,
+				// matching how the game actually streams it, diverges
+				// from one continuous decode at EXACTLY the first call
+				// boundary, immediately producing full-scale square-wave
+				// garbage). The inner loops below only checked the
+				// sample limit AFTER `m_BytesRead` was already
+				// incremented and the byte's LOW nibble already decoded -
+				// so a request landing exactly on a 16-sample boundary
+				// (any multiple of AUDIO_OUT_GRAIN-sized chunk request
+				// will, e.g. this project's own 4096-sample refill) made
+				// the outer loop start one extra "phantom" iteration:
+				// consume/decode half a byte, then break, having already
+				// told the caller (via bytesReadOut, derived from
+				// m_BytesRead) that the WHOLE byte was consumed. Every
+				// following decode call is then permanently one nibble
+				// out of true alignment with the real bitstream - total
+				// desync, exactly matching "clean, then garbage from
+				// here on". Real fix: never let an iteration START if
+				// its own first output index is already at/past the
+				// limit - checked here, before any state mutation,
+				// rather than only deep inside the nested loops after
+				// the fact.
+				if ((uint32_t)destIndex >= numSamplesToExtract) break;
+
 				if (m_BytesRead % 72 == 0)
 				{
 					m_Predictor0 = *((int16_t *) (ADPCMBuffer + i));
@@ -256,13 +292,18 @@ namespace LibSWBF2
 		{
 			for (uint32_t i = 0; i < ADPCMBufferLength; ++i)
 			{
+				// MILESTONE 255: same real bug fixed in DecodeAndFillPCM16 -
+				// see that function's own header comment for the full
+				// citation. Check before mutating any state, not after.
+				if ((uint32_t)DecodedDataBufferIndex >= numSamplesToExtract) break;
+
 				if (m_BytesRead % 36 == 0)
 				{
 					m_Predictor0 = *((int16_t *) (ADPCMBuffer + i));
 					m_StepIndex0 = *((int16_t *) (ADPCMBuffer + i + 2));
 
 					i+=4;
-					m_BytesRead+=4;					
+					m_BytesRead+=4;
 				}
 
 				m_BytesRead++;
@@ -293,7 +334,12 @@ namespace LibSWBF2
 
 			// Keeping destination index checks even though I
 			for (uint32_t i = 0; i < ADPCMBufferLength; i+=8)
-			{	
+			{
+				// MILESTONE 255: same real bug fixed in DecodeAndFillPCM16 -
+				// see that function's own header comment for the full
+				// citation. Check before mutating any state, not after.
+				if ((uint32_t)destIndex >= numSamplesToExtract) break;
+
 				if (m_BytesRead % 72 == 0)
 				{
 					m_Predictor0 = *((int16_t *) (ADPCMBuffer + i));

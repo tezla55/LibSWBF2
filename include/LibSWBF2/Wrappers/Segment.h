@@ -72,6 +72,12 @@ namespace LibSWBF2::Wrappers
 		// returns false if there are no vertex weights present
 		bool GetVertexWeights(uint32_t& count, VertexWeight*& weightBuffer) const;
 
+		// M451: real per-vertex colours (VBUF Color flag, BGRA on disk).
+		// Searches this segment's vertex buffers for one carrying colours
+		// with the same vertex count as GetVertexBuffer(). Returns false if
+		// none (most world geometry); count is vertices, NOT bytes.
+		bool GetVertexColors(uint32_t& count, Types::Color4u8*& colorBuffer) const;
+
 		// returns the skeleton bone this segment belongs to
 		String GetBone() const;
 

@@ -452,6 +452,7 @@ namespace LibSWBF2::Types
 #include <LibSWBF2/Chunks/LVL/tex_/FMT_.h>
 #include <LibSWBF2/Chunks/LVL/tex_/tex_.LVL_.h>
 #include <LibSWBF2/Chunks/LVL/modl/LVL.modl.h>
+#include <LibSWBF2/Chunks/LVL/modl/shdw.h>
 #include <LibSWBF2/Chunks/LVL/modl/modl.segm.h>
 #include <LibSWBF2/Chunks/LVL/modl/modl.VBUF.h>
 #include <LibSWBF2/Chunks/LVL/modl/TNAM.h>
@@ -523,6 +524,7 @@ namespace LibSWBF2
 	template class LIBSWBF2_API Types::List<LibSWBF2::Chunks::LVL::LVL_texture::LVL_*>;
 	template class LIBSWBF2_API Types::List<LVL::modl::modl*>;
 	template class LIBSWBF2_API Types::List<LVL::modl::segm*>;
+	template class LIBSWBF2_API Types::List<LVL::modl::shdw*>; // M459
 	template class LIBSWBF2_API Types::List<LVL::modl::VBUF*>;
 	template class LIBSWBF2_API Types::List<LVL::modl::TNAM*>;
 	template class LIBSWBF2_API Types::List<LVL::wrld::inst*>;

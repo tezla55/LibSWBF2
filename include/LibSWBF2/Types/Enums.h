@@ -149,6 +149,7 @@ namespace LibSWBF2
 		StaticLighting = 0b100000000u,
 		TexCoord = 0b1000000000u,
 
+		ShadowFaceCorners = 0b100000000000u, // M459: see VBUF::m_ShadowCornerB
 		PositionCompressed = 0b1000000000000u,
 		BlendWeightCompressed = 0b10000000000000u,
 		NormalCompressed = 0b100000000000000u,
@@ -203,14 +204,20 @@ namespace LibSWBF2
 	};
 
 
+	// M463 (swbf2render): the real bit order is the game's own AISizeType
+	// list - GameObject.cpp case 0xaff22806 "SOLDIER" "HOVER" "SMALL"
+	// "MEDIUM" "HUGE" "FLYER" - which the editor's filter buttons repeat
+	// (gzeditor_pathplanning_init.cfg / gzeditor_barrier_init.cfg). The old
+	// order (Small 2, Medium 4, Hover 8, Large 16, Huge 32) had no source and
+	// put HUGE on the flyer bit.
 	enum class EArcFilterFlags : uint32_t
 	{
 		Soldier = 1,
-		Small = 2,
-		Medium = 4,
-		Hover = 8,
-		Large = 16,
-		Huge = 32
+		Hover = 2,
+		Small = 4,
+		Medium = 8,
+		Huge = 16,
+		Flyer = 32
 	};
 
 

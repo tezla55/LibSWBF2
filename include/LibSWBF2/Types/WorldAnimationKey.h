@@ -14,7 +14,11 @@ namespace LibSWBF2::Types
 	struct Vector3;
 	struct String;
 
-	#pragma pack(push,1)
+	// M479 (swbf2render): NOT packed. pack(1) put m_EaseOut/m_EaseIn at odd
+	// offsets after the 1-byte transition type, and the Vita's VFP stores
+	// data-abort on them - myg1.lvl (world animations) crashed in
+	// wrld::anim::ReadFromStream. ReadFromStream reads field by field, so
+	// the layout never mattered.
 	struct LIBSWBF2_API WorldAnimationKey
 	{
 		float m_Time;
@@ -29,5 +33,4 @@ namespace LibSWBF2::Types
 		String ToString() const;
 
 	};
-	#pragma pack(pop)
 }

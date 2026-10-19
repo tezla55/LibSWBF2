@@ -9,6 +9,11 @@
 
 namespace LibSWBF2::Chunks::LVL::sound
 {
+	// M249: see this class's own header comment. nullptr by default -
+	// every existing caller keeps loading every clip's data exactly as
+	// before.
+	std::unordered_set<FNVHash>* SampleBankData::s_LoadFilter = nullptr;
+
 	void SampleBankData::RefreshSize()
 	{
 		THROW("Not implemented!");
@@ -29,14 +34,14 @@ namespace LibSWBF2::Chunks::LVL::sound
 		{
 			LOG_ERROR("Tried to read SampleBankData from a chunk other than SampleBank");
 		}
-		else 
+		else
 		{
 			SampleBankInfo* info = bank -> p_Info;
 			if (info == nullptr)
 			{
 				LOG_ERROR("Tried to read SampleBankData, but parent SampleBank's Info chunk was missing!");
 			}
-			else 
+			else
 			{
 				for (int i = 0; i < info -> m_SoundHeaders.Size(); i++)
 				{
@@ -52,6 +57,16 @@ namespace LibSWBF2::Chunks::LVL::sound
 					// If sound header has alias we skip it
 					if (currClip.m_Alias != 0)
 					{
+						continue;
+					}
+
+					// M249: real, opt-in memory fix - see this class's own
+					// header comment on s_LoadFilter. A clip not in the
+					// filter is skipped (real SkipBytes, correct stream
+					// position, no allocation) instead of read.
+					if (s_LoadFilter != nullptr && s_LoadFilter->find(currClip.m_NameHash) == s_LoadFilter->end())
+					{
+						stream.SkipBytes(currClip.m_DataLength + currClip.m_Padding);
 						continue;
 					}
 

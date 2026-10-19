@@ -185,6 +185,29 @@ namespace LibSWBF2::Wrappers
 	}
 
 
+	bool Segment::GetVertexColors(uint32_t& count, Types::Color4u8*& colorBuffer) const
+	{
+		count = 0;
+		colorBuffer = nullptr;
+		const size_t n = p_VertexBuffer->m_Positions.Size();
+		if (n == 0) return false;
+		// Colour and StaticLighting both append to m_Colors, so only a buffer
+		// holding exactly one colour per vertex is unambiguous.
+		auto usable = [n](VBUF* vb) {
+			// M495: a -vertexlighting (prelit) buffer carries its baked light as
+			// StaticLighting, not Color - cor1's Temple is all prelit (material
+			// flag 0x200) and only 13 of 79 models were found by Color alone.
+			return vb != nullptr && ((vb->m_Flags & EVBUFFlags::Color) != 0 || (vb->m_Flags & EVBUFFlags::StaticLighting) != 0) && vb->m_Colors.Size() == n;
+		};
+		VBUF* pick = usable(p_VertexBuffer) ? p_VertexBuffer : nullptr;
+		for (size_t i = 0; pick == nullptr && i < p_Segment->m_VertexBuffers.Size(); ++i)
+			if (usable(p_Segment->m_VertexBuffers[i])) pick = p_Segment->m_VertexBuffers[i];
+		if (pick == nullptr) return false;
+		count = (uint32_t)n;
+		colorBuffer = pick->m_Colors.GetArrayPtr();
+		return true;
+	}
+
 	String Segment::GetBone() const
 	{
 		if (p_Segment -> p_Parent != nullptr)

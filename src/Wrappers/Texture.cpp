@@ -61,6 +61,16 @@ namespace LibSWBF2::Wrappers
 		return p_FMT->p_Info->m_MipmapCount;
 	}
 
+	bool Texture::GetRawImageData(uint8_t mipLevel, uint16_t& width, uint16_t& height, uint32_t& d3dFormat, const uint8_t*& data, size_t& size) const
+	{
+		List<LVL_*>& mipChunks = p_FMT->p_Face->m_LVLs;
+		for (size_t i = 0; i < mipChunks.Size(); ++i)
+			if (mipChunks[i]->p_Info->m_MipLevel == mipLevel)
+				return mipChunks[i]->p_Body->GetRawData(width, height, d3dFormat, data, size);
+		width = height = 0; d3dFormat = 0; data = nullptr; size = 0;
+		return false;
+	}
+
 	bool Texture::GetImageData(ETextureFormat format, uint8_t mipLevel, uint16_t& width, uint16_t& height, const uint8_t*& data) const
 	{
 		List<LVL_*>& mipChunks = p_FMT->p_Face->m_LVLs;

@@ -71,6 +71,9 @@ namespace LibSWBF2::Wrappers
 		void GetBlendMap(uint32_t& dim, uint32_t& numLayers, uint8_t*& imgData) const;
 
 		void GetHeightBounds(float& floor, float& ceiling) const;
+
+		// M530: the terrain's water (see tern.h): false when the terrain has none
+		bool GetWater(uint32_t& grid, float& extent, const List<float>*& heights, const List<uint8_t>*& cellMap) const;
  
 		// Texture name for each terrain layer. Usually 16 layers
 		const List<String>& GetLayerTextures() const;

@@ -393,6 +393,8 @@ namespace LibSWBF2::Chunks
 	template struct LIBSWBF2_API GenericChunk<"modl"_m>;
 	template struct LIBSWBF2_API GenericChunk<"gmod"_m>;
 	template struct LIBSWBF2_API GenericChunk<"segm"_m>;
+	template struct LIBSWBF2_API GenericChunk<"shdw"_m>; // M459
+	template struct LIBSWBF2_API GenericChunk<"GSHD"_m>; // M459
 	template struct LIBSWBF2_API GenericChunk<"MTRL"_m>;
 	template struct LIBSWBF2_API GenericChunk<"tern"_m>;
 	template struct LIBSWBF2_API GenericChunk<"PCHS"_m>;

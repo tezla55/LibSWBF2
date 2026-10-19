@@ -44,7 +44,17 @@ namespace LibSWBF2::Chunks::LVL::sound
 					break;
 
 				case "NumSamples"_fnv:
+					// MILESTONE 251: real bug, found while investigating an
+					// unrelated audio report - this case fell through into
+					// "Size" below (missing break), consuming and
+					// misattributing an extra real field and desyncing the
+					// rest of this chunk's parse by one field-slot. Never
+					// triggered on any file this project has tested (their
+					// real Info chunks apparently never carry a literal
+					// bank-level "NumSamples" field), so left dormant until
+					// now rather than silently fixed without a note.
 					m_NumSamples = stream.ReadUInt32();
+					break;
 
 				case "Size"_fnv:
 					m_CombinedSoundSize = stream.ReadUInt32(); 

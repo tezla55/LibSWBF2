@@ -75,6 +75,12 @@ bool CrossPlatImage::IsConvertibleTo(D3DFORMAT f)
     case D3DFMT_A8L8:
     case D3DFMT_L16:
     case D3DFMT_A4L4:
+    // SWBF2 Vita port (2026-08-31): D3DFMT_A8 - a single-channel ALPHA
+    // texture. This is the format the retail font glyph atlases in
+    // core.lvl use (gamefont_small_tex0 and friends), and without it
+    // GetImageData returned 0x0 for them, which is what blocked using the
+    // real fonts at all.
+    case D3DFMT_A8:
       return true;
     default:
       return false;
@@ -131,6 +137,17 @@ bool CrossPlatImage::ToRGBA(){
     case D3DFMT_L16:
     case D3DFMT_A4L4:
       lumToRGBA(width, height, p_Data, sink, format);
+      break;
+
+    // A8: one byte per pixel, and that byte is ALPHA. White RGB with the
+    // source as alpha is what a glyph atlas wants - the text then takes
+    // whatever colour it is drawn with.
+    case D3DFMT_A8:
+      for (int i = 0; i < width * height; ++i)
+      {
+        const uint8_t a = p_Data[i];
+        sink[i] = (uint32_t)((a << 24) | 0x00FFFFFFu);
+      }
       break;
     default:
       LOG_ERROR("(Shouldn't happen...) Cannot convert {} to R8_G8_B8_A8!", LibSWBF2::D3DToString(format));

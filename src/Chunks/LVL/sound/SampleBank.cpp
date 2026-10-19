@@ -35,7 +35,7 @@ namespace LibSWBF2::Chunks::LVL::sound
 			{
 				READ_CHILD(stream, p_Data);
 			}
-			else 
+			else
 			{
 				stream.SkipBytes(4);
 			}

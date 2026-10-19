@@ -399,6 +399,10 @@ namespace LibSWBF2
 		{
 			result += "Soldier, ";
 		}
+		if ((flags & EArcFilterFlags::Hover) != 0)
+		{
+			result += "Hover, ";
+		}
 		if ((flags & EArcFilterFlags::Small) != 0)
 		{
 			result += "Small, ";
@@ -407,17 +411,13 @@ namespace LibSWBF2
 		{
 			result += "Medium, ";
 		}
-		if ((flags & EArcFilterFlags::Hover) != 0)
-		{
-			result += "Hover, ";
-		}
-		if ((flags & EArcFilterFlags::Large) != 0)
-		{
-			result += "Large, ";
-		}
 		if ((flags & EArcFilterFlags::Huge) != 0)
 		{
 			result += "Huge, ";
+		}
+		if ((flags & EArcFilterFlags::Flyer) != 0)
+		{
+			result += "Flyer, ";
 		}
 
 		size_t resultSize = result.size();

@@ -108,6 +108,53 @@ namespace LibSWBF2
 	Vector4 MatrixToQuaternion(const Matrix3x3& matrix)
 	{
 		glm::mat3 mat = ToGLM(matrix);
+
+		// Some real shipped chunks store an IMPROPER orthogonal matrix -
+		// determinant -1, i.e. a rotation composed with an axis flip from
+		// the source coordinate convention - rather than a pure rotation.
+		// Every single BARR on Geonosis is like this. Decoded straight
+		// out of geo1.lvl, "barrier18" carries
+		//     [ 0.58912  0  0.80804 ]
+		//     [ 0        1  0       ]
+		//     [ 0.80804  0 -0.58912 ]
+		// whose determinant is -1, alongside a position (-9.328, 0,
+		// -160.341) that matches the authored geo1.bar corners exactly.
+		//
+		// glm::quat_cast is only defined for a proper rotation. Handed a
+		// reflection it does not fail, it returns a DEGENERATE, non-unit
+		// quaternion - all 398 Geonosis barriers come back as the very
+		// same (0, 0.7071, 0, 0), magnitude 0.7071. Rotating a vector by
+		// a quaternion that short does not rotate it, it shrinks it; for
+		// this particular value it collapses the vector to exactly zero,
+		// so any "is this point inside my local box" test built on it
+		// answers YES for every point in the world.
+		//
+		// WHICH axis gets flipped is not free, and picking wrong is not
+		// obvious - it still yields a unit quaternion and a plausible
+		// box, just the MIRROR IMAGE of the real one, covering a
+		// different patch of ground. Negating a COLUMN flips one of the
+		// box's own local axes, which leaves the same box (an axis is
+		// sign-agnostic) and so cannot undo a reflection at all.
+		// Negating the X ROW mirrors the axes in world X, which is
+		// exactly the stored convention's flip.
+		//
+		// Checked against the authored data rather than reasoned about:
+		// reconstructing barrier18's four corners from the recovered
+		// position/rotation/size reproduces the four Corner() lines in
+		// geo1.bar, and the same holds for barrier19. The column-negating
+		// version reproduced the same X and Z VALUES paired the wrong way
+		// round - the giveaway that it was a mirror.
+		//
+		// Matrices that are already proper (every Instance, Region and
+		// HintNode on this map - all measured at exactly |q| = 1.0) are
+		// untouched by this.
+		if (glm::determinant(mat) < 0.0f)
+		{
+			mat[0][0] = -mat[0][0];
+			mat[1][0] = -mat[1][0];
+			mat[2][0] = -mat[2][0];
+		}
+
 		glm::quat quat = glm::quat(mat);
 		return ToLib(quat);
 	}

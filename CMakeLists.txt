@@ -10,10 +10,21 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# produce relative code adresses, necessary for shared libs
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# produce relative code adresses, necessary for shared libs.
+# Vita's executable format can't represent GOT/PLT-relative relocations at
+# all (and everything here is built STATIC now anyway - see below), so PIC
+# must stay off for the Vita cross-build regardless of what's passed on the
+# cmake command line: this is a plain `set()`, not a CACHE entry, so it runs
+# BEFORE add_subdirectory(glm)/add_subdirectory(fmt) below and shadows any
+# -DCMAKE_POSITION_INDEPENDENT_CODE=OFF for this whole configure pass,
+# including in those subdirectories.
+if(CMAKE_CXX_COMPILER MATCHES "vita")
+    set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+else()
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
-add_library(LibSWBF2 SHARED)
+add_library(LibSWBF2 STATIC)
 
 set(GLM_DIR "${PROJECT_SOURCE_DIR}/ThirdParty/glm")
 set(FMT_DIR "${PROJECT_SOURCE_DIR}/ThirdParty/fmt")
@@ -189,6 +200,7 @@ target_sources(LibSWBF2 PRIVATE
   "${SRC_DIR}/Chunks/LVL/modl/INFO.cpp"
   "${SRC_DIR}/Chunks/LVL/modl/LVL.modl.cpp"
   "${SRC_DIR}/Chunks/LVL/modl/modl.segm.cpp"
+  "${SRC_DIR}/Chunks/LVL/modl/shdw.cpp"
   "${SRC_DIR}/Chunks/LVL/modl/modl.VBUF.cpp"
   "${SRC_DIR}/Chunks/LVL/modl/MTRL.cpp"
   "${SRC_DIR}/Chunks/LVL/modl/segm.INFO.cpp"
@@ -300,4 +312,3 @@ target_sources(LibSWBF2 PRIVATE
   "${SRC_DIR}/Chunks/LVL/plan/plan.cpp"
   "${SRC_DIR}/Chunks/LVL/plan/plnp.cpp"
 )
-

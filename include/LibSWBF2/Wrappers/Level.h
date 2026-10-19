@@ -48,6 +48,13 @@ namespace LibSWBF2::Wrappers
 	typedef LibSWBF2::Chunks::LVL::sound::Stream Stream;
 
 
+	public:
+		// M382 load-time probe (swbf2render): the two stages of the last
+		// FromFile() call - the chunk-tree read/parse, and building the
+		// wrapper objects (ExploreChildrenRecursive).
+		static double s_LastReadMs;
+		static double s_LastExploreMs;
+
 	private:
 		friend Container;
 
@@ -124,6 +131,18 @@ namespace LibSWBF2::Wrappers
 		const Config* GetConfig(EConfigType cfgType, const String& cfgName) const;
 		const SoundStream* GetSoundStream(const String& streamName) const;
 		const SoundBank* GetSoundBank(const String& bankName) const;
+		// MILESTONE 255: real, minimal addition - SoundStream's own
+		// streaming API (SetFileReader/SetFileStreamBuffer/SetSegment/
+		// ReadSamples) is inherently mutating, but every existing
+		// accessor (this class's own GetSoundStream/GetSoundStreams,
+		// and SoundStream's own constructors/copy/assignment) is const-
+		// only or private - there was no legitimate public way to
+		// actually USE the streaming API at all, only to inspect a
+		// stream's already-parsed header info. Same non-const-caller-
+		// facing pattern this file already uses elsewhere (compare
+		// FindAndIndexSoundStream below); does not change what any
+		// existing const caller sees.
+		SoundStream* GetSoundStreamMutable(const String& streamName);
 
 		const Model* GetModel(FNVHash modelName) const;
 		const Texture* GetTexture(FNVHash textureName) const;

@@ -27,6 +27,7 @@
 #include <LibSWBF2/IO/FileReader.h>
 
 #include <unordered_map>
+#include <chrono>
 #include <filesystem>
 
 
@@ -410,18 +411,26 @@ namespace LibSWBF2::Wrappers
 		}
 	}
 
+	double Level::s_LastReadMs = 0.0;
+	double Level::s_LastExploreMs = 0.0;
+
 	Level* Level::FromFile(const String& path, const List<String>* subLVLsToLoad)
 	{
+		const auto t0 = std::chrono::steady_clock::now();
 		LVL* lvl = LVL::Create();
 		if (!lvl->ReadFromFile(path, subLVLsToLoad))
 		{
 			LVL::Destroy(lvl);
 			return nullptr;
 		}
+		const auto t1 = std::chrono::steady_clock::now();
 
 		Level* result = new Level(lvl, nullptr);
 		result->m_FullPath = path;
 		result->ExploreChildrenRecursive(lvl);
+		const auto t2 = std::chrono::steady_clock::now();
+		s_LastReadMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+		s_LastExploreMs = std::chrono::duration<double, std::milli>(t2 - t1).count();
 
 		return result;
 	}
@@ -815,6 +824,21 @@ namespace LibSWBF2::Wrappers
 
 	const SoundStream* Level::GetSoundStream(FNVHash streamHashName) const
 	{
+		auto it = m_NameToIndexMaps->SoundStreamHashToIndex.find(streamHashName);
+		if (it != m_NameToIndexMaps->SoundStreamHashToIndex.end())
+		{
+			return &m_SoundStreams[it->second];
+		}
+		return nullptr;
+	}
+
+	// MILESTONE 255: see this method's own header comment - real,
+	// minimal non-const accessor so a real caller can actually drive
+	// SoundStream's streaming API.
+	SoundStream* Level::GetSoundStreamMutable(const String& streamName)
+	{
+		if (streamName.IsEmpty()) return nullptr;
+		FNVHash streamHashName = FNV::Hash(streamName);
 		auto it = m_NameToIndexMaps->SoundStreamHashToIndex.find(streamHashName);
 		if (it != m_NameToIndexMaps->SoundStreamHashToIndex.end())
 		{

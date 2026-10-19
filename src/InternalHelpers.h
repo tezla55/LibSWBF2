@@ -127,9 +127,9 @@ struct fmt::formatter<LibSWBF2::Chunks::BaseChunk> {
 
 #define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 //#define LOG(message, level) LibSWBF2::Logging::Logger::GetInstance()->Log(message, level, __LINE__, __FILENAME__);
-#define LOG_INFO(...) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Info, __LINE__, __FILENAME__)
-#define LOG_WARN(...) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Warning, __LINE__, __FILENAME__)
-#define LOG_ERROR(...) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Error, __LINE__, __FILENAME__)
+#define LOG_INFO(...) do { if (LibSWBF2::Logging::Logger::Wants(LibSWBF2::ELogType::Info)) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Info, __LINE__, __FILENAME__); } while (0) // M392: level check first
+#define LOG_WARN(...) do { if (LibSWBF2::Logging::Logger::Wants(LibSWBF2::ELogType::Warning)) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Warning, __LINE__, __FILENAME__); } while (0) // M392: level check first
+#define LOG_ERROR(...) do { if (LibSWBF2::Logging::Logger::Wants(LibSWBF2::ELogType::Error)) LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Error, __LINE__, __FILENAME__); } while (0) // M392: level check first
 
 #define THROW(...) throw LibException(fmt::format("{} - IN {} {}", fmt::format(__VA_ARGS__), __LINE__, __FILENAME__))
 #define LOG_THROW(...) throw LibException(fmt::format("{} - IN {} {}", fmt::format(__VA_ARGS__), __LINE__, __FILENAME__)); LibSWBF2::Logging::Logger::GetInstance()->Log(fmt::format(__VA_ARGS__), LibSWBF2::ELogType::Error, __LINE__, __FILENAME__)

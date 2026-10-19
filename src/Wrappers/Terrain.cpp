@@ -366,4 +366,12 @@ namespace LibSWBF2::Wrappers
 	{
 		return p_Terrain->p_LayerTextures->m_LayerTextures;
 	}
+
+	bool Terrain::GetWater(uint32_t& grid, float& extent, const List<float>*& heights, const List<uint8_t>*& cellMap) const
+	{
+		if (p_Terrain == nullptr || p_Terrain->m_WaterHeights.Size() == 0 || p_Terrain->m_WaterMap.Size() == 0) return false;
+		grid = p_Terrain->m_WaterGrid; extent = p_Terrain->m_WaterExtent;
+		heights = &p_Terrain->m_WaterHeights; cellMap = &p_Terrain->m_WaterMap;
+		return true;
+	}
 }

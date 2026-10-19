@@ -28,6 +28,71 @@ namespace LibSWBF2::Types
 		delete[] m_Data;
 	}
 
+	// M249: see this class's own header comment for the real bug these
+	// four fixed - a double free in List<SoundClip>::Resize() that only
+	// surfaced against real, large (thousands-of-clips) sound banks.
+	SoundClip::SoundClip(const SoundClip& other)
+		: m_HeaderPosition(other.m_HeaderPosition), m_DataPosition(other.m_DataPosition),
+		  m_NameHash(other.m_NameHash), m_SampleRate(other.m_SampleRate),
+		  m_SampleCount(other.m_SampleCount), m_DataLength(other.m_DataLength),
+		  m_Padding(other.m_Padding), m_Alias(other.m_Alias), m_Data(nullptr)
+	{
+		if (other.m_Data != nullptr && m_DataLength > 0)
+		{
+			m_Data = new uint8_t[m_DataLength];
+			memcpy(m_Data, other.m_Data, m_DataLength);
+		}
+	}
+
+	SoundClip& SoundClip::operator=(const SoundClip& other)
+	{
+		if (this == &other) return *this;
+		m_HeaderPosition = other.m_HeaderPosition;
+		m_DataPosition = other.m_DataPosition;
+		m_NameHash = other.m_NameHash;
+		m_SampleRate = other.m_SampleRate;
+		m_SampleCount = other.m_SampleCount;
+		m_DataLength = other.m_DataLength;
+		m_Padding = other.m_Padding;
+		m_Alias = other.m_Alias;
+
+		delete[] m_Data;
+		m_Data = nullptr;
+		if (other.m_Data != nullptr && m_DataLength > 0)
+		{
+			m_Data = new uint8_t[m_DataLength];
+			memcpy(m_Data, other.m_Data, m_DataLength);
+		}
+		return *this;
+	}
+
+	SoundClip::SoundClip(SoundClip&& other) noexcept
+		: m_HeaderPosition(other.m_HeaderPosition), m_DataPosition(other.m_DataPosition),
+		  m_NameHash(other.m_NameHash), m_SampleRate(other.m_SampleRate),
+		  m_SampleCount(other.m_SampleCount), m_DataLength(other.m_DataLength),
+		  m_Padding(other.m_Padding), m_Alias(other.m_Alias), m_Data(other.m_Data)
+	{
+		other.m_Data = nullptr;
+	}
+
+	SoundClip& SoundClip::operator=(SoundClip&& other) noexcept
+	{
+		if (this == &other) return *this;
+		m_HeaderPosition = other.m_HeaderPosition;
+		m_DataPosition = other.m_DataPosition;
+		m_NameHash = other.m_NameHash;
+		m_SampleRate = other.m_SampleRate;
+		m_SampleCount = other.m_SampleCount;
+		m_DataLength = other.m_DataLength;
+		m_Padding = other.m_Padding;
+		m_Alias = other.m_Alias;
+
+		delete[] m_Data;
+		m_Data = other.m_Data;
+		other.m_Data = nullptr;
+		return *this;
+	}
+
 	const uint8_t* SoundClip::GetSampleData() const
 	{
 		return m_Data;

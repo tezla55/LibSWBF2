@@ -35,6 +35,12 @@ namespace LibSWBF2::Chunks::LVL::modl
             {
                 READ_CHILD(stream, p_Info);
             }
+            else if (next == "shdw"_h) // M459
+            {
+                shdw* part;
+                READ_CHILD(stream, part);
+                m_Shadows.Add(part);
+            }
             else if (next == "segm"_h)
             {
                 segm* segment;

@@ -24,6 +24,89 @@ namespace LibSWBF2::Wrappers
 		delete p_Decoder;
 	}
 
+	// M249: see this class's own header comment for the real bug these
+	// four fixed. Rebuilds p_Decoder from p_StreamChunk's own real format
+	// data - the same real construction FromChunk (below) already does -
+	// rather than attempting to clone SoundDecoder's abstract internals.
+	static SoundDecoder* RebuildDecoderFor(const Stream* streamChunk)
+	{
+		if (streamChunk == nullptr || streamChunk->p_Info == nullptr) return nullptr;
+		const auto format = streamChunk->p_Info->m_Format;
+		if (format == ESoundFormat::IMAADPCM)
+			return new IMAADPCMDecoder(streamChunk->p_Info->m_NumChannels, streamChunk->p_Info->m_ChannelInterleave);
+		if (format == ESoundFormat::PCM16)
+			return new PCM16Decoder();
+		return nullptr;
+	}
+
+	SoundStream::SoundStream(const SoundStream& other)
+		: p_StreamChunk(other.p_StreamChunk), m_Sounds(other.m_Sounds),
+		  p_Reader(other.p_Reader), p_StreamBuffer(other.p_StreamBuffer),
+		  m_SizeStreamBuffer(other.m_SizeStreamBuffer),
+		  p_CurrentSegment(other.p_CurrentSegment),
+		  m_StreamBufferReadOffset(other.m_StreamBufferReadOffset),
+		  m_StreamBufferDataSize(other.m_StreamBufferDataSize),
+		  m_SegmentOffset(other.m_SegmentOffset),
+		  p_Decoder(RebuildDecoderFor(other.p_StreamChunk)),
+		  p_NameToIndexMaps(other.p_NameToIndexMaps)
+	{
+	}
+
+	SoundStream& SoundStream::operator=(const SoundStream& other)
+	{
+		if (this == &other) return *this;
+		p_StreamChunk = other.p_StreamChunk;
+		m_Sounds = other.m_Sounds;
+		p_Reader = other.p_Reader;
+		p_StreamBuffer = other.p_StreamBuffer;
+		m_SizeStreamBuffer = other.m_SizeStreamBuffer;
+		p_CurrentSegment = other.p_CurrentSegment;
+		m_StreamBufferReadOffset = other.m_StreamBufferReadOffset;
+		m_StreamBufferDataSize = other.m_StreamBufferDataSize;
+		m_SegmentOffset = other.m_SegmentOffset;
+
+		delete p_Decoder;
+		p_Decoder = RebuildDecoderFor(other.p_StreamChunk);
+		p_NameToIndexMaps = other.p_NameToIndexMaps;
+		return *this;
+	}
+
+	SoundStream::SoundStream(SoundStream&& other) noexcept
+		: p_StreamChunk(other.p_StreamChunk), m_Sounds(std::move(other.m_Sounds)),
+		  p_Reader(other.p_Reader), p_StreamBuffer(other.p_StreamBuffer),
+		  m_SizeStreamBuffer(other.m_SizeStreamBuffer),
+		  p_CurrentSegment(other.p_CurrentSegment),
+		  m_StreamBufferReadOffset(other.m_StreamBufferReadOffset),
+		  m_StreamBufferDataSize(other.m_StreamBufferDataSize),
+		  m_SegmentOffset(other.m_SegmentOffset),
+		  p_Decoder(other.p_Decoder),
+		  p_NameToIndexMaps(other.p_NameToIndexMaps)
+	{
+		other.p_Decoder = nullptr;
+		other.p_NameToIndexMaps = nullptr;
+	}
+
+	SoundStream& SoundStream::operator=(SoundStream&& other) noexcept
+	{
+		if (this == &other) return *this;
+		p_StreamChunk = other.p_StreamChunk;
+		m_Sounds = std::move(other.m_Sounds);
+		p_Reader = other.p_Reader;
+		p_StreamBuffer = other.p_StreamBuffer;
+		m_SizeStreamBuffer = other.m_SizeStreamBuffer;
+		p_CurrentSegment = other.p_CurrentSegment;
+		m_StreamBufferReadOffset = other.m_StreamBufferReadOffset;
+		m_StreamBufferDataSize = other.m_StreamBufferDataSize;
+		m_SegmentOffset = other.m_SegmentOffset;
+
+		delete p_Decoder;
+		p_Decoder = other.p_Decoder;
+		other.p_Decoder = nullptr;
+		p_NameToIndexMaps = other.p_NameToIndexMaps;
+		other.p_NameToIndexMaps = nullptr;
+		return *this;
+	}
+
 
 	bool SoundStream::SetFileReader(FileReader * reader)
 	{
@@ -105,7 +188,7 @@ namespace LibSWBF2::Wrappers
     }
 
 
-    int32_t SoundStream::ReadSamples(void * samplesBuffer, size_t samplesBufferLength, 
+    int32_t SoundStream::ReadSamples(void * samplesBuffer, size_t samplesBufferLength,
         					size_t numSamplesToRead, ESoundFormat format)
     {
     	int32_t NumSamplesRead = 0;
@@ -115,7 +198,33 @@ namespace LibSWBF2::Wrappers
     	size_t BytesRead;
 
 
-    	while (NumSamplesRead < numSamplesToRead && BytesLeftInSegment() > 0)
+    	// MILESTONE 273 (real bug fix, SWBF2 Vita port): the old condition
+    	// - `BytesLeftInSegment() > 0` alone - conflates "more encoded bytes
+    	// remain to be FETCHED FROM DISK" with "more data remains to be
+    	// DECODED". ReadBytesFromStream() below advances m_SegmentOffset (and
+    	// therefore BytesLeftInSegment()) by the FULL amount just fetched
+    	// into the buffer the moment a refill happens, not by how much of
+    	// that buffered data has actually been consumed by the decoder yet.
+    	// So once a refill happens to be the LAST one for a segment (either
+    	// because the caller's own stream buffer is smaller than the
+    	// segment, so the final refill drains the disk-side remainder in one
+    	// go, or because the buffer is bigger than the WHOLE segment, so the
+    	// very FIRST refill already does), BytesLeftInSegment() drops to 0
+    	// immediately - and this loop's own condition then refuses to keep
+    	// decoding the data that refill already fetched into
+    	// p_StreamBuffer, even though most of it is still sitting there
+    	// un-decoded. Confirmed natively (LibSWBF2/tools/check_vo_decode.cpp)
+    	// against a real 51712-sample VO segment: a small stream buffer
+    	// stopped at 32768 samples (lost the last ~1s), and a stream buffer
+    	// bigger than the whole segment stopped at just 4096 samples (lost
+    	// almost the entire real line) - both premature "we're done" reads
+    	// of a signal that only ever meant "no more DISK fetches will
+    	// happen". The real, correct condition is "there is more to decode
+    	// AND/OR more to fetch" - i.e. also keep going while the buffer
+    	// itself still holds undecoded bytes from an earlier refill,
+    	// regardless of what BytesLeftInSegment() reports.
+    	while (NumSamplesRead < numSamplesToRead &&
+    	       ((int32_t)m_StreamBufferDataSize - (int32_t)m_StreamBufferReadOffset > 0 || BytesLeftInSegment() > 0))
     	{
     		NumBytesLeftInBuffer = m_StreamBufferDataSize - m_StreamBufferReadOffset;
 
@@ -123,6 +232,7 @@ namespace LibSWBF2::Wrappers
     		{
     			ReadBytesFromStream(m_SizeStreamBuffer);
 	    		NumBytesLeftInBuffer = m_StreamBufferDataSize - m_StreamBufferReadOffset;
+	    		if (NumBytesLeftInBuffer <= 0) break; // real end of segment - refill genuinely produced nothing more
     		}
 
     		int32_t NumSamplesDecoded;
@@ -270,8 +380,14 @@ namespace LibSWBF2::Wrappers
 
 	bool SoundStream::HasSegment(FNVHash segmentName) const
 	{
+		// MILESTONE 255: real bug, found while implementing real map
+		// ambience playback - this returned true exactly when the
+		// segment was NOT found (inverted comparison). Confirmed against
+		// this project's own check_sound_data ("geo1cw" - not a real
+		// segment name - reported hasSegmentSelf=1) before touching
+		// anything, then fixed.
 		auto it = p_NameToIndexMaps->SoundHashToIndex.find(segmentName);
-		return it == p_NameToIndexMaps->SoundHashToIndex.end();
+		return it != p_NameToIndexMaps->SoundHashToIndex.end();
 	}
 
 

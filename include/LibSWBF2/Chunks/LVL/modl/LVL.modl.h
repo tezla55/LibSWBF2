@@ -3,6 +3,7 @@
 #include <LibSWBF2/Chunks/STR.h>
 #include <LibSWBF2/Chunks/LVL/modl/INFO.h>
 #include <LibSWBF2/Chunks/LVL/modl/modl.segm.h>
+#include <LibSWBF2/Chunks/LVL/modl/shdw.h>
 
 namespace LibSWBF2::Chunks::LVL::modl
 {
@@ -14,6 +15,7 @@ namespace LibSWBF2::Chunks::LVL::modl
 		INFO* p_Info;
 
 		List<segm*> m_Segments;
+		List<shdw*> m_Shadows; // M459: the shadow volume PARTS (units carry 2, the AT-TE 19)
 
 	public:
 		void RefreshSize() override;
