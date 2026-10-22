@@ -97,6 +97,21 @@ namespace LibSWBF2::Types
 	}
 
 	template<class T>
+	T* List<T>::Grow(size_t count)
+	{
+		if (ArrayPtr == nullptr) Init(count > LIST_DEFAULT_INIT_SIZE ? count : LIST_DEFAULT_INIT_SIZE);
+		if (NumElements + count > MaxElements)
+		{
+			size_t cap = MaxElements ? MaxElements : 1;
+			while (cap < NumElements + count) cap *= 2;
+			Resize(cap);
+		}
+		T* first = ArrayPtr + NumElements;
+		NumElements += count;
+		return first;
+	}
+
+	template<class T>
 	size_t List<T>::Add(const T& Element)
 	{
 		if (ArrayPtr == nullptr)

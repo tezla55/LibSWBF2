@@ -7,10 +7,47 @@
 #include "InternalHelpers.h"
 #include <LibSWBF2/IO/FileReader.h>
 #include <limits>
+#include <cstring>
+#include <string>
+#include <vector>
 
 
 #undef min
 #undef max
+
+namespace
+{
+    // swbf2-vita M532: a vertex block read from the file in ONE call, then parsed from memory. Positions are
+    // file offsets (the parser's per-vertex SetPosition(vertexStart + stride) works unchanged). `final`, with
+    // inline bodies: the parser's own stream.ReadX() calls become plain loads - on the Vita each used to be a
+    // virtual call + CheckGood + a buffered file read (VBUF: ~2.5 M of them on one cor1 load). Reads past the
+    // block give 0 (the file reader threw) - the vertex data itself is pinned by tests/native/check_lvl_digest.
+    class SpanReader final : public LibSWBF2::FileReader
+    {
+        const uint8_t* m_Data; size_t m_Base, m_Pos, m_End;
+        template <class T> T Get() { T v{}; if (m_Pos >= m_Base && m_Pos + sizeof(T) <= m_End) memcpy(&v, m_Data + (m_Pos - m_Base), sizeof(T)); m_Pos += sizeof(T); return v; }
+    public:
+        SpanReader(const uint8_t* data, size_t base, size_t len) : m_Data(data), m_Base(base), m_Pos(base), m_End(base + len) {}
+        bool Open(const LibSWBF2::Types::String&) override { return true; }
+        LibSWBF2::ChunkHeader ReadChunkHeader(bool peek) override { LibSWBF2::ChunkHeader h; h.m_Magic = Get<uint32_t>(); if (peek) m_Pos -= 4; return h; }
+        LibSWBF2::ChunkSize ReadChunkSize() override { return Get<uint32_t>(); }
+        uint8_t ReadByte() override { return Get<uint8_t>(); }
+        bool ReadBytes(uint8_t* d, size_t n) override { if (m_Pos < m_Base || m_Pos + n > m_End) return false; memcpy(d, m_Data + (m_Pos - m_Base), n); m_Pos += n; return true; }
+        int32_t ReadInt32() override { return Get<int32_t>(); }
+        int16_t ReadInt16() override { return Get<int16_t>(); }
+        uint32_t ReadUInt32() override { return Get<uint32_t>(); }
+        uint16_t ReadUInt16() override { return Get<uint16_t>(); }
+        float ReadFloat() override { return Get<float>(); }
+        LibSWBF2::Types::String ReadString(size_t length) override { std::string t(length, '\0'); ReadBytes((uint8_t*)&t[0], length); return t.c_str(); }
+        LibSWBF2::Types::String ReadString() override { std::string t; while (m_Pos < m_End) { const uint8_t c = Get<uint8_t>(); if (c == 0) break; t += (char)c; } return t.c_str(); }
+        size_t GetPosition() override { return m_Pos; }
+        void SetPosition(size_t p) override { m_Pos = p; }
+        size_t GetFileSize() override { return m_End; }
+        bool SkipBytes(const size_t& n) override { m_Pos += n; return true; }
+        void Close() override {}
+        bool CheckGood(size_t n) override { return m_Pos >= m_Base && m_Pos + n <= m_End; }
+    };
+}
 
 namespace LibSWBF2::Chunks::LVL::modl
 {
@@ -24,14 +61,14 @@ namespace LibSWBF2::Chunks::LVL::modl
         THROW("Not implemented!");
     }
 
-    void VBUF::ReadFromStream(FileReader& stream)
+    void VBUF::ReadFromStream(FileReader& fileStream)
     {
-        BaseChunk::ReadFromStream(stream);
-        Check(stream);
+        BaseChunk::ReadFromStream(fileStream);
+        Check(fileStream);
 
-        m_Count = stream.ReadUInt32();
-        m_Stride = stream.ReadUInt32();
-        m_Flags = (EVBUFFlags)stream.ReadUInt32();
+        m_Count = fileStream.ReadUInt32();
+        m_Stride = fileStream.ReadUInt32();
+        m_Flags = (EVBUFFlags)fileStream.ReadUInt32();
 
         // M459: walk up to the model - a segment's VBUF sits at segm/modl,
         // a shadow volume's at GSHD/shdw/modl.
@@ -42,9 +79,17 @@ namespace LibSWBF2::Chunks::LVL::modl
         {
             // should never happen
             LOG_ERROR("Parent modl is NULL!");
-            BaseChunk::EnsureEnd(stream);
+            BaseChunk::EnsureEnd(fileStream);
             return;
         }
+
+        // swbf2-vita M532: the rest of the chunk (the vertices) in one read; parsed from memory below
+        const size_t blockStart = fileStream.GetPosition();
+        const size_t chunkEnd = GetDataPosition() + GetDataSize();
+        const size_t blockLen = chunkEnd > blockStart ? chunkEnd - blockStart : 0;
+        std::vector<uint8_t> block(blockLen);
+        if (blockLen > 0) fileStream.ReadBytes(block.data(), blockLen);
+        SpanReader stream(block.data(), blockStart, blockLen);
 
         // M459: compressed position decode, shared by the shadow-corner layout.
         auto readPos = [&](Vector3& out) {
@@ -243,7 +288,8 @@ namespace LibSWBF2::Chunks::LVL::modl
             if (m_Stride > 0) stream.SetPosition(vertexStart + m_Stride); // M459
         }
 
-        BaseChunk::EnsureEnd(stream);
+        fileStream.SetPosition(chunkEnd);
+        BaseChunk::EnsureEnd(fileStream);
     }
 
     String VBUF::ToString() const

@@ -31,10 +31,8 @@ namespace LibSWBF2::Types
 		}
 
 		m_WideString.Resize(numWideChars);
-		for (int i = 0; i < numWideChars; ++i)
-		{
-			m_WideString.Add(stream.ReadUInt16());
-		}
+		// swbf2-vita M532: one bulk read (little-endian on both targets) - was one ReadUInt16 per character
+		stream.ReadBytes((uint8_t*)m_WideString.Grow((size_t)numWideChars), (size_t)numWideChars * sizeof(uint16_t));
 
 		int i = numWideChars - 1;
 		for (; i > 0; i -= 2)

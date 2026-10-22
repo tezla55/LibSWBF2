@@ -1,4 +1,5 @@
 #include <LibSWBF2/pch.h>
+#include <unordered_set>
 #include <LibSWBF2/Wrappers/Level.h>
 
 #include <LibSWBF2/Wrappers/Wrappers.h>
@@ -71,8 +72,19 @@ namespace LibSWBF2::Wrappers
 		delete m_NameToIndexMaps;
 	}
 
+	// swbf2-vita M532: the header a chunk class is declared with (deduced from its GenericChunk<Header> base)
+	template <uint32_t H> static constexpr uint32_t ChunkMagic(const GenericChunk<H>*) { return H; }
+
 	void Level::ExploreChildrenRecursive(GenericBaseChunk* root)
 	{
+		// swbf2-vita M532: only chunks of an explored type go through the dynamic_cast chain below. Every chunk
+		// of every file used to run ~29 dynamic_casts; on the Vita (ARM EABI: type_info compared by NAME, a
+		// strcmp per step) that made explore ~70x slower than on the PC (ingame.lvl 3.3 s vs 48 ms). A chunk
+		// class is tied to one header (GenericChunk<Header>), so one lookup of the header picks the chunks
+		// that can match; the casts themselves are unchanged.
+		static const std::unordered_set<uint32_t> s_ExploredHeaders = { ChunkMagic((Locl*)nullptr), ChunkMagic((SampleBank*)nullptr), ChunkMagic((Stream*)nullptr), ChunkMagic((coll*)nullptr), ChunkMagic((comb*)nullptr), ChunkMagic((entc*)nullptr), ChunkMagic((expc*)nullptr), ChunkMagic((ffx_*)nullptr), ChunkMagic((fx__*)nullptr), ChunkMagic((hud_*)nullptr), ChunkMagic((lght*)nullptr), ChunkMagic((modl*)nullptr), ChunkMagic((mus_*)nullptr), ChunkMagic((ordc*)nullptr), ChunkMagic((path*)nullptr), ChunkMagic((plan*)nullptr), ChunkMagic((prim*)nullptr), ChunkMagic((scr_*)nullptr), ChunkMagic((skel*)nullptr), ChunkMagic((sky_*)nullptr), ChunkMagic((snd_*)nullptr), ChunkMagic((tern*)nullptr), ChunkMagic((tex_*)nullptr), ChunkMagic((tsr_*)nullptr), ChunkMagic((wpnc*)nullptr), ChunkMagic((wrld*)nullptr), ChunkMagic((zaa_*)nullptr), ChunkMagic((zaf_*)nullptr) };
+		if (s_ExploredHeaders.count(root->GetHeader().m_Magic) != 0)
+		{
 		// IMPORTANT: crawl textures BEFORE models, so texture references via string can be resolved in models
 		tex_* textureChunk = dynamic_cast<tex_*>(root);
 		if (textureChunk != nullptr)
@@ -403,6 +415,8 @@ namespace LibSWBF2::Wrappers
 			}
 		}
 
+
+		}
 
 		const List<GenericBaseChunk*>& children = root->GetChildren();
 		for (size_t i = 0; i < children.Size(); ++i)

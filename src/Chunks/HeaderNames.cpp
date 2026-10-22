@@ -4,6 +4,7 @@
 #include <LibSWBF2/Hashing.h>
 #include <fmt/format.h>
 #include <set>
+#include <unordered_set>
 #include <array>
 #include <map>
 #include <string>
@@ -110,6 +111,14 @@ namespace LibSWBF2
 
 	bool IsKnownHeader(const ChunkHeader hedr)
 	{
-		return (KNOWN_GENERIC_HEADERS.find(hedr) != KNOWN_GENERIC_HEADERS.end()) || (KNOWN_SOUND_HEADERS.find(hedr) != KNOWN_SOUND_HEADERS.end());
+		// swbf2-vita M532: one hash lookup on the 32-bit magic. The ordered set/map took ~13 out-of-line
+		// operator< calls per chunk (1.4 M lookups, 17.9 M compares on one cor1 load - slow on the Vita).
+		static const std::unordered_set<uint32_t> s_Known = [] {
+			std::unordered_set<uint32_t> k;
+			for (const ChunkHeader& h : KNOWN_GENERIC_HEADERS) k.insert(h.m_Magic);
+			for (const auto& kv : KNOWN_SOUND_HEADERS) k.insert(kv.first.m_Magic);
+			return k;
+		}();
+		return s_Known.count(hedr.m_Magic) != 0;
 	}
 }

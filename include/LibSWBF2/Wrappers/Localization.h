@@ -35,5 +35,9 @@ namespace LibSWBF2::Wrappers
 
 		// count is number of wide chars, NOT number of bytes!
 		bool GetLocalizedWideString(const String& path, uint16_t*& chars, uint32_t& count) const;
+
+		// swbf2-vita M532: enumerate every entry (hashed path, wide string) - tools and the cooker
+		size_t GetEntryCount() const;
+		bool GetEntry(size_t index, uint32_t& pathHash, const uint16_t*& chars, uint32_t& count) const;
 	};
 }

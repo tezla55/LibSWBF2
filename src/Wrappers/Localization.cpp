@@ -85,4 +85,17 @@ namespace LibSWBF2::Wrappers
 
 		return false;
 	}
+
+	size_t Localization::GetEntryCount() const
+	{
+		return (p_Locl != nullptr && p_Locl->p_Body != nullptr) ? p_Locl->p_Body->m_LocalizeEntries.Size() : 0;
+	}
+
+	bool Localization::GetEntry(size_t index, uint32_t& pathHash, const uint16_t*& chars, uint32_t& count) const
+	{
+		if (index >= GetEntryCount()) return false;
+		const auto& e = p_Locl->p_Body->m_LocalizeEntries[index];
+		pathHash = e.m_LocalizePathHash; chars = e.m_WideString.GetArrayPtr(); count = (uint32_t)e.m_WideString.Size();
+		return true;
+	}
 }

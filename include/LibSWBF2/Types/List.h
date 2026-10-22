@@ -34,6 +34,10 @@ namespace LibSWBF2::Types
 		// returns index of last added element
 		size_t Append(const List<T>& Items);
 
+		// swbf2-vita M532: make room for `count` more elements, count them as added, and return a pointer
+		// to the first one (for bulk reads straight into the list). The new elements are default-constructed.
+		T* Grow(size_t count);
+
 		// needs type-wise implementations!
 		virtual bool Contains(const T& Element);
 
