@@ -74,6 +74,9 @@ namespace LibSWBF2::Wrappers
 
 		// M530: the terrain's water (see tern.h): false when the terrain has none
 		bool GetWater(uint32_t& grid, float& extent, const List<float>*& heights, const List<uint8_t>*& cellMap) const;
+
+		// M530: the water sheet's own cell size and INFO5 multiplier (for the texture tiling)
+		bool GetWaterInfo(float& cellSize, uint32_t& info5) const;
  
 		// Texture name for each terrain layer. Usually 16 layers
 		const List<String>& GetLayerTextures() const;

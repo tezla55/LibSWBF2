@@ -59,9 +59,15 @@ namespace LibSWBF2::Chunks::LVL::terrain
                     const ChunkHeader h = stream.ReadChunkHeader(false);
                     const size_t s = stream.ReadChunkSize();
                     const size_t next2 = stream.GetPosition() + ((s + 3) & ~(size_t)3);
-                    if (h == "INFO"_h && s >= 16)
+                    if (h == "INFO"_h && s >= 24)
                     {
-                        m_WaterGrid = stream.ReadUInt32(); stream.ReadUInt32(); stream.ReadFloat(); m_WaterExtent = stream.ReadFloat();
+                        m_WaterGrid = stream.ReadUInt32(); stream.ReadUInt32(); m_WaterCell = stream.ReadFloat(); m_WaterExtent = stream.ReadFloat();
+                        stream.ReadFloat(); // half extent Z (equal to X on every shipped chunk)
+                        m_WaterInfo5 = stream.ReadUInt32();
+                    }
+                    else if (h == "INFO"_h && s >= 16)
+                    {
+                        m_WaterGrid = stream.ReadUInt32(); stream.ReadUInt32(); m_WaterCell = stream.ReadFloat(); m_WaterExtent = stream.ReadFloat();
                     }
                     else if (h == "LAYR"_h && s >= 9)
                     {

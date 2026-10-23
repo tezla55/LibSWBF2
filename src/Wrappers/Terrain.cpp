@@ -374,4 +374,11 @@ namespace LibSWBF2::Wrappers
 		heights = &p_Terrain->m_WaterHeights; cellMap = &p_Terrain->m_WaterMap;
 		return true;
 	}
+
+	bool Terrain::GetWaterInfo(float& cellSize, uint32_t& info5) const
+	{
+		if (p_Terrain == nullptr || p_Terrain->m_WaterGrid == 0) return false;
+		cellSize = p_Terrain->m_WaterCell; info5 = p_Terrain->m_WaterInfo5;
+		return true;
+	}
 }
