@@ -82,7 +82,7 @@ namespace LibSWBF2::Wrappers
 		// strcmp per step) that made explore ~70x slower than on the PC (ingame.lvl 3.3 s vs 48 ms). A chunk
 		// class is tied to one header (GenericChunk<Header>), so one lookup of the header picks the chunks
 		// that can match; the casts themselves are unchanged.
-		static const std::unordered_set<uint32_t> s_ExploredHeaders = { ChunkMagic((Locl*)nullptr), ChunkMagic((SampleBank*)nullptr), ChunkMagic((Stream*)nullptr), ChunkMagic((coll*)nullptr), ChunkMagic((comb*)nullptr), ChunkMagic((entc*)nullptr), ChunkMagic((expc*)nullptr), ChunkMagic((ffx_*)nullptr), ChunkMagic((fx__*)nullptr), ChunkMagic((hud_*)nullptr), ChunkMagic((lght*)nullptr), ChunkMagic((modl*)nullptr), ChunkMagic((mus_*)nullptr), ChunkMagic((ordc*)nullptr), ChunkMagic((path*)nullptr), ChunkMagic((plan*)nullptr), ChunkMagic((prim*)nullptr), ChunkMagic((scr_*)nullptr), ChunkMagic((skel*)nullptr), ChunkMagic((sky_*)nullptr), ChunkMagic((snd_*)nullptr), ChunkMagic((tern*)nullptr), ChunkMagic((tex_*)nullptr), ChunkMagic((tsr_*)nullptr), ChunkMagic((wpnc*)nullptr), ChunkMagic((wrld*)nullptr), ChunkMagic((zaa_*)nullptr), ChunkMagic((zaf_*)nullptr) };
+		static const std::unordered_set<uint32_t> s_ExploredHeaders = { ChunkMagic((Locl*)nullptr), ChunkMagic((SampleBank*)nullptr), ChunkMagic((Stream*)nullptr), ChunkMagic((coll*)nullptr), ChunkMagic((comb*)nullptr), ChunkMagic((entc*)nullptr), ChunkMagic((expc*)nullptr), ChunkMagic((ffx_*)nullptr), ChunkMagic((fx__*)nullptr), ChunkMagic((hud_*)nullptr), ChunkMagic((lght*)nullptr), ChunkMagic((modl*)nullptr), ChunkMagic((mus_*)nullptr), ChunkMagic((ordc*)nullptr), ChunkMagic((path*)nullptr), ChunkMagic((plan*)nullptr), ChunkMagic((prim*)nullptr), ChunkMagic((prp_*)nullptr), ChunkMagic((scr_*)nullptr), ChunkMagic((skel*)nullptr), ChunkMagic((sky_*)nullptr), ChunkMagic((snd_*)nullptr), ChunkMagic((tern*)nullptr), ChunkMagic((tex_*)nullptr), ChunkMagic((tsr_*)nullptr), ChunkMagic((wpnc*)nullptr), ChunkMagic((wrld*)nullptr), ChunkMagic((zaa_*)nullptr), ChunkMagic((zaf_*)nullptr) };
 		if (s_ExploredHeaders.count(root->GetHeader().m_Magic) != 0)
 		{
 		// IMPORTANT: crawl textures BEFORE models, so texture references via string can be resolved in models
@@ -144,6 +144,16 @@ namespace LibSWBF2::Wrappers
 			if (Config::FromChunk(skydomeChunk, skydome))
 			{
 				m_NameToIndexMaps->ConfigHashToIndex.emplace(skydome.m_Name + (uint32_t) skydome.m_Type, m_Configs.Add(std::move(skydome)));
+			}
+		}
+
+		prp_* propChunk = dynamic_cast<prp_*>(root); // swbf2-vita: the PropGenerator's foliage layers
+		if (propChunk != nullptr)
+		{
+			Config prop;
+			if (Config::FromChunk(propChunk, prop))
+			{
+				m_NameToIndexMaps->ConfigHashToIndex.emplace(prop.m_Name + (uint32_t) prop.m_Type, m_Configs.Add(std::move(prop)));
 			}
 		}
 

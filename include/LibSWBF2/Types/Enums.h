@@ -100,6 +100,7 @@ namespace LibSWBF2
         Boundary = 0x5f646e62,
         Skydome = 0x5f796b73,
         Path = 0x68746170,
+        Prop = 0x5f707270, // swbf2-vita: prp_ (the PropGenerator foliage layers)
         Combo = 0x626d6f63,
         Music = 0x5f73756d,
         FoleyFX = 0x5f786666,

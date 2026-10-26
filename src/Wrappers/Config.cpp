@@ -315,6 +315,10 @@ namespace LibSWBF2::Wrappers
 		{
 			type = EConfigType::HUD;
 		}
+		else if (dynamic_cast<prp_*>(cfgPtr) != nullptr) // swbf2-vita: foliage
+		{
+			type = EConfigType::Prop;
+		}
 		else 
 		{
 			LOG_ERROR("Couldn't wrap unhandled config chunk...");
